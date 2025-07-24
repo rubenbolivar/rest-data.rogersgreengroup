@@ -137,6 +137,9 @@ app.get('/', async (req, res) => {
                                     <i class='bi bi-building fs-1 text-success'></i>
                                     <h3 class='mt-2'>${restaurants}</h3>
                                     <p class='text-muted'>Restaurantes</p>
+                                    <a href='/restaurants' class='btn btn-success btn-sm mt-2'>
+                                        <i class='bi bi-eye'></i> Ver Restaurantes
+                                    </a>
                                 </div>
                             </div>
                         </div>
