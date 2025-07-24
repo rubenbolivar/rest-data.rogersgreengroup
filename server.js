@@ -188,10 +188,12 @@ app.get('/restaurants', async (req, res) => {
         query += ` ORDER BY r.name ASC LIMIT $${paramCount} OFFSET $${paramCount + 1}`;
         params.push(limit, offset);
         
-        const restaurants = await db.query(query, params);
+        const dbConn = directDb || db;
+        const restaurants = await dbConn.query(query, params);
         
         // Get zones for filter
-        const zones = await db.getAllZones();
+        const zonesResult = await dbConn.query('SELECT * FROM zones WHERE is_active = true ORDER BY display_name');
+        const zones = zonesResult;
         
         res.render('restaurants', {
             title: 'Restaurants',

@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Restaurantes - Rogers Green</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.2/font/bootstrap-icons.css" rel="stylesheet">
+    <link href="https://cdn.datatables.net/1.13.7/css/dataTables.bootstrap5.min.css" rel="stylesheet">
+</head>
+<body>
+    <%- include('partials/navbar') %>
+    
+    <div class="container mt-4">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h1><i class="bi bi-building"></i> Restaurantes</h1>
+            <div>
+                <span class="badge bg-success"><%= restaurants.length %> restaurantes mostrados</span>
+                <a href="/scraping" class="btn btn-primary btn-sm">
+                    <i class="bi bi-plus-circle"></i> Agregar Más
+                </a>
+            </div>
+        </div>
+        
+        <!-- Filtros -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5><i class="bi bi-funnel"></i> Filtros</h5>
+            </div>
+            <div class="card-body">
+                <form method="GET" action="/restaurants">
+                    <div class="row">
+                        <div class="col-md-3">
+                            <label class="form-label">Zona:</label>
+                            <select name="zone" class="form-select">
+                                <option value="">Todas las zonas</option>
+                                <% zones.forEach(zone => { %>
+                                    <option value="<%= zone.id %>" <%= filters.zone == zone.id ? 'selected' : '' %>>
+                                        <%= zone.display_name %> (<%= zone.city %>)
+                                    </option>
+                                <% }); %>
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">Tipo de Cocina:</label>
+                            <input type="text" name="cuisine" class="form-control" 
+                                   value="<%= filters.cuisine || '' %>" 
+                                   placeholder="Ej: Italian, Mexican">
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label">Con Email:</label>
+                            <select name="has_email" class="form-select">
+                                <option value="">Todos</option>
+                                <option value="true" <%= filters.has_email === 'true' ? 'selected' : '' %>>
+                                    Solo con email
+                                </option>
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label">&nbsp;</label>
+                            <div>
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="bi bi-search"></i> Filtrar
+                                </button>
+                            </div>
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label">&nbsp;</label>
+                            <div>
+                                <a href="/restaurants" class="btn btn-outline-secondary">
+                                    <i class="bi bi-x-circle"></i> Limpiar
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+        
+        <!-- Tabla de Restaurantes -->
+        <div class="card">
+            <div class="card-header">
+                <h5><i class="bi bi-table"></i> Lista de Restaurantes</h5>
+            </div>
+            <div class="card-body">
+                <% if (restaurants.length > 0) { %>
+                    <div class="table-responsive">
+                        <table id="restaurantsTable" class="table table-striped table-hover">
+                            <thead class="table-dark">
+                                <tr>
+                                    <th>Nombre</th>
+                                    <th>Dirección</th>
+                                    <th>Zona</th>
+                                    <th>Rating</th>
+                                    <th>Precio</th>
+                                    <th>Contacto</th>
+                                    <th>Agregado</th>
+                                    <th>Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <% restaurants.forEach(restaurant => { %>
+                                    <tr>
+                                        <td>
+                                            <strong><%= restaurant.name %></strong>
+                                            <% if (restaurant.cuisine_type) { %>
+                                                <br><small class="text-muted"><%= restaurant.cuisine_type %></small>
+                                            <% } %>
+                                        </td>
+                                        <td>
+                                            <%= restaurant.address %>
+                                            <% if (restaurant.latitude && restaurant.longitude) { %>
+                                                <br>
+                                                <a href="https://maps.google.com/?q=<%= restaurant.latitude %>,<%= restaurant.longitude %>" 
+                                                   target="_blank" class="btn btn-sm btn-outline-info">
+                                                    <i class="bi bi-geo-alt"></i> Mapa
+                                                </a>
+                                            <% } %>
+                                        </td>
+                                        <td>
+                                            <span class="badge bg-primary"><%= restaurant.zone_name %></span>
+                                        </td>
+                                        <td>
+                                            <% if (restaurant.rating) { %>
+                                                <span class="badge bg-warning text-dark">
+                                                    <i class="bi bi-star-fill"></i> <%= restaurant.rating %>
+                                                </span>
+                                            <% } else { %>
+                                                <span class="text-muted">N/A</span>
+                                            <% } %>
+                                        </td>
+                                        <td>
+                                            <% if (restaurant.price_level) { %>
+                                                <span class="text-success">
+                                                    <%= '$'.repeat(restaurant.price_level) %>
+                                                </span>
+                                            <% } else { %>
+                                                <span class="text-muted">N/A</span>
+                                            <% } %>
+                                        </td>
+                                        <td>
+                                            <% if (restaurant.phone) { %>
+                                                <a href="tel:<%= restaurant.phone %>" class="btn btn-sm btn-outline-success">
+                                                    <i class="bi bi-telephone"></i>
+                                                </a>
+                                            <% } %>
+                                            <% if (restaurant.email) { %>
+                                                <a href="mailto:<%= restaurant.email %>" class="btn btn-sm btn-outline-primary">
+                                                    <i class="bi bi-envelope"></i>
+                                                </a>
+                                            <% } %>
+                                            <% if (restaurant.website) { %>
+                                                <a href="<%= restaurant.website %>" target="_blank" class="btn btn-sm btn-outline-info">
+                                                    <i class="bi bi-globe"></i>
+                                                </a>
+                                            <% } %>
+                                            <% if (!restaurant.phone && !restaurant.email && !restaurant.website) { %>
+                                                <span class="text-muted">Sin contacto</span>
+                                            <% } %>
+                                        </td>
+                                        <td>
+                                            <small class="text-muted">
+                                                <%= new Date(restaurant.created_at).toLocaleDateString('es-ES') %>
+                                            </small>
+                                        </td>
+                                        <td>
+                                            <div class="btn-group" role="group">
+                                                <button type="button" class="btn btn-sm btn-outline-primary" 
+                                                        onclick="viewDetails('<%= restaurant.google_place_id %>')">
+                                                    <i class="bi bi-eye"></i>
+                                                </button>
+                                                <% if (restaurant.google_place_id) { %>
+                                                    <a href="https://www.google.com/maps/place/?q=place_id:<%= restaurant.google_place_id %>" 
+                                                       target="_blank" class="btn btn-sm btn-outline-success">
+                                                        <i class="bi bi-google"></i>
+                                                    </a>
+                                                <% } %>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                <% }); %>
+                            </tbody>
+                        </table>
+                    </div>
+                    
+                    <!-- Paginación -->
+                    <nav aria-label="Paginación de restaurantes">
+                        <ul class="pagination justify-content-center mt-3">
+                            <% if (currentPage > 1) { %>
+                                <li class="page-item">
+                                    <a class="page-link" href="?page=<%= currentPage - 1 %>&zone=<%= filters.zone || '' %>&cuisine=<%= filters.cuisine || '' %>&has_email=<%= filters.has_email || '' %>">
+                                        Anterior
+                                    </a>
+                                </li>
+                            <% } %>
+                            
+                            <li class="page-item active">
+                                <span class="page-link">Página <%= currentPage %></span>
+                            </li>
+                            
+                            <% if (restaurants.length === 50) { %>
+                                <li class="page-item">
+                                    <a class="page-link" href="?page=<%= currentPage + 1 %>&zone=<%= filters.zone || '' %>&cuisine=<%= filters.cuisine || '' %>&has_email=<%= filters.has_email || '' %>">
+                                        Siguiente
+                                    </a>
+                                </li>
+                            <% } %>
+                        </ul>
+                    </nav>
+                    
+                <% } else { %>
+                    <div class="text-center py-5">
+                        <i class="bi bi-search display-1 text-muted"></i>
+                        <h4 class="mt-3">No se encontraron restaurantes</h4>
+                        <p class="text-muted">
+                            <% if (filters.zone || filters.cuisine || filters.has_email) { %>
+                                Intenta ajustar los filtros o <a href="/restaurants">ver todos los restaurantes</a>.
+                            <% } else { %>
+                                Aún no hay restaurantes en la base de datos. 
+                                <a href="/scraping" class="btn btn-primary">Iniciar Scraping</a>
+                            <% } %>
+                        </p>
+                    </div>
+                <% } %>
+            </div>
+        </div>
+        
+        <!-- Estadísticas adicionales -->
+        <div class="row mt-4">
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header">
+                        <h6><i class="bi bi-bar-chart"></i> Estadísticas Rápidas</h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="row text-center">
+                            <div class="col-4">
+                                <div class="h5 mb-0"><%= restaurants.filter(r => r.rating >= 4).length %></div>
+                                <small class="text-muted">Rating 4+</small>
+                            </div>
+                            <div class="col-4">
+                                <div class="h5 mb-0"><%= restaurants.filter(r => r.phone).length %></div>
+                                <small class="text-muted">Con Teléfono</small>
+                            </div>
+                            <div class="col-4">
+                                <div class="h5 mb-0"><%= restaurants.filter(r => r.email).length %></div>
+                                <small class="text-muted">Con Email</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header">
+                        <h6><i class="bi bi-download"></i> Exportar Datos</h6>
+                    </div>
+                    <div class="card-body">
+                        <p class="small text-muted">Exportar la lista actual de restaurantes</p>
+                        <div class="btn-group" role="group">
+                            <button class="btn btn-outline-success" onclick="exportToCSV()">
+                                <i class="bi bi-file-earmark-spreadsheet"></i> CSV
+                            </button>
+                            <button class="btn btn-outline-info" onclick="exportToJSON()">
+                                <i class="bi bi-file-earmark-code"></i> JSON
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Modal para detalles del restaurante -->
+    <div class="modal fade" id="restaurantModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Detalles del Restaurante</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body" id="restaurantDetails">
+                    Cargando...
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+    <script src="https://cdn.datatables.net/1.13.7/js/jquery.dataTables.min.js"></script>
+    <script src="https://cdn.datatables.net/1.13.7/js/dataTables.bootstrap5.min.js"></script>
+    
+    <script>
+        $(document).ready(function() {
+            $('#restaurantsTable').DataTable({
+                "language": {
+                    "url": "//cdn.datatables.net/plug-ins/1.13.7/i18n/es-ES.json"
+                },
+                "pageLength": 25,
+                "order": [[ 0, "asc" ]],
+                "columnDefs": [
+                    { "orderable": false, "targets": [7] }
+                ]
+            });
+        });
+        
+        function viewDetails(placeId) {
+            // Mostrar detalles del restaurante
+            const modal = new bootstrap.Modal(document.getElementById('restaurantModal'));
+            document.getElementById('restaurantDetails').innerHTML = 'Cargando detalles...';
+            modal.show();
+            
+            // Aquí podrías hacer una llamada AJAX para obtener más detalles
+            // Por ahora, mostrar información básica
+            setTimeout(() => {
+                document.getElementById('restaurantDetails').innerHTML = 
+                    `<p><strong>Google Place ID:</strong> ${placeId}</p>
+                     <p>Los detalles adicionales se pueden obtener usando Google Places Details API.</p>`;
+            }, 500);
+        }
+        
+        function exportToCSV() {
+            // Implementar exportación a CSV
+            alert('Funcionalidad de exportación CSV próximamente');
+        }
+        
+        function exportToJSON() {
+            // Implementar exportación a JSON
+            alert('Funcionalidad de exportación JSON próximamente');
+        }
+    </script>
+</body>
+</html>
