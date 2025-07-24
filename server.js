@@ -9,6 +9,22 @@ require('dotenv').config();
 
 // Import services and routes
 const db = require('./src/services/databaseService');
+const { Pool } = require('pg');
+
+// Initialize direct database connection for scraping (fallback)
+let directDb = null;
+try {
+    directDb = new Pool({
+        connectionString: process.env.DATABASE_URL,
+        ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
+    });
+} catch (error) {
+    console.log('Direct database connection error:', error.message);
+}
+
+// Scraping Jobs Storage
+let activeScrapingJobs = new Map();
+let scrapingHistory = [];
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -197,31 +213,88 @@ app.get('/restaurants', async (req, res) => {
 // Scraping page
 app.get('/scraping', async (req, res) => {
     try {
-        const activeJobs = await db.getActiveScrapingJobs();
-        const zones = await db.getAllZones();
+        const dbConn = directDb || db;
+        let zones = [];
+        
+        if (dbConn) {
+            const zonesResult = await dbConn.query(`
+                SELECT id, zone_code, display_name, city, state, latitude, longitude, 
+                       radius_meters, priority, is_active,
+                       (SELECT COUNT(*) FROM restaurants WHERE zone_id = zones.id) as restaurant_count
+                FROM zones 
+                WHERE is_active = true
+                ORDER BY priority, display_name
+            `);
+            zones = zonesResult.rows;
+        }
         
         res.render('scraping', {
-            title: 'Scraping Jobs',
-            activeJobs: activeJobs.rows,
-            zones: zones.rows,
+            title: 'Sistema de Scraping',
+            zones: zones,
+            activeJobs: Array.from(activeScrapingJobs.values()),
             showSidebar: false
         });
     } catch (error) {
         console.error('Error loading scraping page:', error);
         res.status(500).render('error', {
             error: 'Error loading scraping page',
-            message: error.message
+            message: error.message,
+            showSidebar: false
         });
     }
 });
 
-// API Routes
-app.get('/api/system/status', (req, res) => {
-    res.json({
-        status: 'online',
-        timestamp: new Date().toISOString(),
-        version: '1.0.0'
-    });
+// API Routes (Enhanced system status)
+app.get('/api/system/status', async (req, res) => {
+    try {
+        let dbStatus = 'disconnected';
+        let dbInfo = null;
+        
+        const dbConn = directDb || db;
+        if (dbConn) {
+            try {
+                const result = await dbConn.query('SELECT NOW() as current_time, version() as version');
+                dbStatus = 'connected';
+                dbInfo = result.rows[0];
+            } catch (dbError) {
+                console.error('Database status check failed:', dbError);
+            }
+        }
+        
+        res.json({
+            status: 'ok',
+            timestamp: new Date().toISOString(),
+            version: '1.0.0',
+            environment: process.env.NODE_ENV,
+            uptime: process.uptime(),
+            memory: process.memoryUsage(),
+            database: {
+                status: dbStatus,
+                info: dbInfo
+            },
+            scraping: {
+                activeJobs: activeScrapingJobs.size,
+                completedJobs: scrapingHistory.length,
+                totalProcessed: scrapingHistory.reduce((sum, job) => sum + (job.results || 0), 0)
+            },
+            features: {
+                googlePlacesAPI: !!process.env.GOOGLE_PLACES_API_KEY,
+                geocodingAPI: !!process.env.GOOGLE_GEOCODING_API_KEY,
+                ssl: req.secure || req.headers['x-forwarded-proto'] === 'https'
+            }
+        });
+    } catch (error) {
+        res.status(500).json({
+            status: 'error',
+            error: error.message,
+            timestamp: new Date().toISOString()
+        });
+    }
+});
+
+// Health check
+app.get('/health', (req, res) => {
+    res.status(200).json({ status: 'healthy', timestamp: new Date().toISOString() });
 });
 
 app.get('/api/dashboard/stats', async (req, res) => {
@@ -240,28 +313,164 @@ app.get('/api/dashboard/stats', async (req, res) => {
     }
 });
 
-// API route for starting scraping
+// API route for starting scraping (enhanced with multi-zone support)
+app.post('/api/scraping/start', async (req, res) => {
+    try {
+        const { zones, delay = 2000, maxResults = 100, extractEmails = true } = req.body;
+        
+        if (!zones || zones.length === 0) {
+            return res.status(400).json({ success: false, error: 'No zones specified' });
+        }
+        
+        const jobId = Date.now().toString();
+        const job = {
+            id: jobId,
+            zones: zones,
+            delay: delay,
+            maxResults: maxResults,
+            extractEmails: extractEmails,
+            status: 'starting',
+            processed: 0,
+            total: zones.length,
+            results: 0,
+            startTime: new Date(),
+            currentZone: null
+        };
+        
+        activeScrapingJobs.set(jobId, job);
+        
+        // Start the scraping process (non-blocking)
+        runScrapingJob(jobId, job);
+        
+        res.json({ 
+            success: true, 
+            jobId: jobId,
+            message: `Job iniciado para ${zones.length} zonas`
+        });
+        
+    } catch (error) {
+        console.error('Error starting scraping job:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// API route for single zone scraping (backward compatibility)
 app.post('/api/scraping/start/:zoneId', async (req, res) => {
     try {
         const { zoneId } = req.params;
+        const { delay = 2000, maxResults = 100, extractEmails = true } = req.body;
         
-        // TODO: Implement actual scraping job creation
-        const job = await db.createScrapingJob({
-            zone_id: zoneId,
-            job_type: 'full_scrape',
-            total_items: 0
+        // Create single-zone job directly (no self-fetch)
+        const jobId = Date.now().toString();
+        const job = {
+            id: jobId,
+            zones: [zoneId],
+            delay: delay,
+            maxResults: maxResults,
+            extractEmails: extractEmails,
+            status: 'starting',
+            processed: 0,
+            total: 1,
+            results: 0,
+            startTime: new Date(),
+            currentZone: null
+        };
+        
+        activeScrapingJobs.set(jobId, job);
+        
+        // Start the scraping process (non-blocking)
+        runScrapingJob(jobId, job);
+        
+        res.json({ 
+            success: true, 
+            jobId: jobId,
+            message: `Job iniciado para zona ${zoneId}`
         });
         
-        res.json({
-            success: true,
-            job,
-            message: 'Scraping job started successfully'
-        });
     } catch (error) {
-        console.error('Error starting scraping job:', error);
+        console.error('Error starting single zone scraping job:', error);
         res.status(500).json({
             success: false,
             error: error.message
+        });
+    }
+});
+
+// Get scraping status
+app.get('/api/scraping/status', (req, res) => {
+    const activeJobs = Array.from(activeScrapingJobs.entries()).map(([id, job]) => ({
+        id,
+        status: job.status,
+        processed: job.processed,
+        total: job.total,
+        results: job.results,
+        currentZone: job.currentZone
+    }));
+    
+    res.json({
+        activeJobs: activeJobs,
+        totalActiveJobs: activeScrapingJobs.size,
+        recentHistory: scrapingHistory.slice(-5)
+    });
+});
+
+// Test Google Places API
+app.get('/api/test/google-places', async (req, res) => {
+    try {
+        const { Client } = require('@googlemaps/google-maps-services-js');
+        const client = new Client({});
+        
+        const response = await client.placesNearby({
+            params: {
+                location: '40.7831,-73.9712',
+                radius: 1000,
+                type: 'restaurant',
+                key: process.env.GOOGLE_PLACES_API_KEY
+            }
+        });
+        
+        res.json({
+            status: 'success',
+            results_count: response.data.results?.length || 0,
+            sample_results: response.data.results?.slice(0, 3) || [],
+            timestamp: new Date().toISOString()
+        });
+    } catch (error) {
+        res.status(500).json({
+            status: 'error',
+            error: error.message,
+            timestamp: new Date().toISOString()
+        });
+    }
+});
+
+// Zones API with restaurant counts
+app.get('/api/zones', async (req, res) => {
+    try {
+        const dbConn = directDb || db;
+        if (!dbConn) {
+            return res.status(500).json({ error: 'Database not connected' });
+        }
+        
+        const zones = await dbConn.query(`
+            SELECT 
+                id, zone_code, display_name, city, state, country,
+                latitude, longitude, radius_meters, priority, is_active,
+                created_at, updated_at,
+                (SELECT COUNT(*) FROM restaurants WHERE zone_id = zones.id) as restaurant_count
+            FROM zones 
+            ORDER BY priority, display_name
+        `);
+        
+        res.json({
+            zones: zones.rows,
+            total: zones.rows.length,
+            timestamp: new Date().toISOString()
+        });
+    } catch (error) {
+        res.status(500).json({
+            error: error.message,
+            timestamp: new Date().toISOString()
         });
     }
 });
@@ -306,8 +515,111 @@ process.on('SIGINT', () => {
     console.log('SIGINT received, shutting down gracefully');
     server.close(() => {
         console.log('Process terminated');
-        db.close();
+        if (db && db.close) db.close();
+        if (directDb) directDb.end();
     });
 });
+
+// Scraping logic function
+async function runScrapingJob(jobId, job) {
+    try {
+        job.status = 'running';
+        console.log(`Starting scraping job ${jobId} for ${job.zones.length} zones`);
+        
+        const { Client } = require('@googlemaps/google-maps-services-js');
+        const client = new Client({});
+        
+        const dbConn = directDb || db;
+        if (!dbConn) {
+            throw new Error('No database connection available');
+        }
+        
+        for (let i = 0; i < job.zones.length; i++) {
+            const zoneId = job.zones[i];
+            
+            // Get zone info (using correct column name 'id')
+            const zoneResult = await dbConn.query('SELECT * FROM zones WHERE id = $1', [zoneId]);
+            if (zoneResult.rows.length === 0) continue;
+            
+            const zone = zoneResult.rows[0];
+            job.currentZone = zone.display_name;
+            
+            console.log(`Processing zone: ${zone.display_name}`);
+            
+            try {
+                // Search for restaurants using Google Places API
+                const response = await client.placesNearby({
+                    params: {
+                        location: `${zone.latitude},${zone.longitude}`,
+                        radius: zone.radius_meters,
+                        type: 'restaurant',
+                        key: process.env.GOOGLE_PLACES_API_KEY
+                    }
+                });
+                
+                const restaurants = response.data.results || [];
+                console.log(`Found ${restaurants.length} restaurants in ${zone.display_name}`);
+                
+                // Save restaurants to database
+                for (const restaurant of restaurants.slice(0, job.maxResults)) {
+                    try {
+                        await dbConn.query(`
+                            INSERT INTO restaurants (
+                                zone_id, google_place_id, name, address, latitude, longitude,
+                                rating, price_level, phone, website, created_at
+                            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NOW())
+                            ON CONFLICT (google_place_id) DO NOTHING
+                        `, [
+                            zone.id, // Using correct column name
+                            restaurant.place_id,
+                            restaurant.name,
+                            restaurant.vicinity || restaurant.formatted_address,
+                            restaurant.geometry?.location?.lat,
+                            restaurant.geometry?.location?.lng,
+                            restaurant.rating,
+                            restaurant.price_level,
+                            null, // phone - would need Places Details API
+                            null, // website - would need Places Details API
+                        ]);
+                        
+                        job.results++;
+                    } catch (dbError) {
+                        console.error('Error saving restaurant:', dbError.message);
+                    }
+                }
+                
+            } catch (apiError) {
+                console.error(`Error processing zone ${zone.display_name}:`, apiError.message);
+            }
+            
+            job.processed++;
+            
+            // Delay between zones
+            if (i < job.zones.length - 1) {
+                await new Promise(resolve => setTimeout(resolve, job.delay));
+            }
+        }
+        
+        job.status = 'completed';
+        job.endTime = new Date();
+        job.currentZone = null;
+        
+        // Move to history
+        scrapingHistory.push({ ...job });
+        activeScrapingJobs.delete(jobId);
+        
+        console.log(`Job ${jobId} completed. Found ${job.results} restaurants.`);
+        
+    } catch (error) {
+        console.error(`Job ${jobId} failed:`, error);
+        job.status = 'failed';
+        job.error = error.message;
+        job.endTime = new Date();
+        
+        // Move to history even if failed
+        scrapingHistory.push({ ...job });
+        activeScrapingJobs.delete(jobId);
+    }
+}
 
 module.exports = app;

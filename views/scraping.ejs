@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistema de Scraping - Rogers Green</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.2/font/bootstrap-icons.css" rel="stylesheet">
+</head>
+<body>
+    <%- include('partials/navbar') %>
+    
+    <div class="container mt-4">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h1><i class="bi bi-robot"></i> Sistema de Scraping</h1>
+            <div>
+                <span class="badge bg-primary"><%= zones.length %> Zonas Disponibles</span>
+                <span class="badge bg-warning" id="activeJobsCount">0 Jobs Activos</span>
+            </div>
+        </div>
+        
+        <div class="row mb-4">
+            <div class="col-md-12">
+                <div class="card">
+                    <div class="card-header">
+                        <h5><i class="bi bi-play-circle"></i> Iniciar Nuevo Job de Scraping</h5>
+                    </div>
+                    <div class="card-body">
+                        <form id="scrapingForm">
+                            <div class="row">
+                                <div class="col-md-8">
+                                    <label class="form-label">Seleccionar Zonas:</label>
+                                    <select class="form-select" name="zones" multiple size="10" required>
+                                        <% zones.forEach(zone => { %>
+                                            <option value="<%= zone.id %>" data-priority="<%= zone.priority %>">
+                                                <%= zone.display_name %> (<%= zone.city %>, <%= zone.state %>) - 
+                                                <%= zone.restaurant_count || 0 %> restaurantes - 
+                                                Prioridad <%= zone.priority %>
+                                            </option>
+                                        <% }); %>
+                                    </select>
+                                    <small class="text-muted">Mantén Ctrl/Cmd presionado para seleccionar múltiples zonas</small>
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label">Configuración:</label>
+                                    <div class="mb-3">
+                                        <label class="form-label">Delay entre requests (ms):</label>
+                                        <input type="number" class="form-control" name="delay" value="2000" min="1000" max="10000">
+                                        <small class="text-muted">Recomendado: 2000ms para evitar rate limiting</small>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label">Máximo restaurantes por zona:</label>
+                                        <input type="number" class="form-control" name="maxResults" value="100" min="10" max="500">
+                                        <small class="text-muted">Google Places devuelve hasta 60 por request</small>
+                                    </div>
+                                    <div class="mb-3">
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" name="extractEmails" id="extractEmails" checked>
+                                            <label class="form-check-label" for="extractEmails">
+                                                Extraer emails (futuro)
+                                            </label>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="mt-3">
+                                <button type="submit" class="btn btn-primary btn-lg">
+                                    <i class="bi bi-play-circle"></i> Iniciar Scraping
+                                </button>
+                                <button type="button" class="btn btn-secondary" onclick="selectAllZones()">
+                                    <i class="bi bi-check-all"></i> Seleccionar Todas
+                                </button>
+                                <button type="button" class="btn btn-outline-warning" onclick="selectPriorityZones()">
+                                    <i class="bi bi-star"></i> Solo Alta Prioridad
+                                </button>
+                                <button type="button" class="btn btn-outline-info" onclick="selectNYCCore()">
+                                    <i class="bi bi-building"></i> Solo NYC Core
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="row">
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header">
+                        <h5><i class="bi bi-activity"></i> Jobs Activos</h5>
+                    </div>
+                    <div class="card-body" id="activeJobs">
+                        <p class="text-muted">No hay jobs activos</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header">
+                        <h5><i class="bi bi-clock-history"></i> Historial Reciente</h5>
+                    </div>
+                    <div class="card-body" id="jobHistory">
+                        <p class="text-muted">No hay historial disponible</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        function selectAllZones() {
+            const select = document.querySelector('select[name="zones"]');
+            for (let option of select.options) {
+                option.selected = true;
+            }
+        }
+        
+        function selectPriorityZones() {
+            const select = document.querySelector('select[name="zones"]');
+            for (let option of select.options) {
+                option.selected = option.dataset.priority === '1';
+            }
+        }
+        
+        function selectNYCCore() {
+            const select = document.querySelector('select[name="zones"]');
+            const nycZones = ['manhattan', 'brooklyn', 'queens', 'bronx', 'staten_island'];
+            for (let option of select.options) {
+                const zoneText = option.textContent.toLowerCase();
+                option.selected = nycZones.some(nyc => zoneText.includes(nyc));
+            }
+        }
+        
+        document.getElementById('scrapingForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const formData = new FormData(this);
+            const zones = Array.from(document.querySelector('select[name="zones"]').selectedOptions).map(o => o.value);
+            
+            if (zones.length === 0) {
+                alert('Por favor selecciona al menos una zona');
+                return;
+            }
+            
+            // Disable button to prevent double submission
+            const submitBtn = this.querySelector('button[type="submit"]');
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<i class="bi bi-hourglass-split"></i> Iniciando...';
+            
+            const data = {
+                zones: zones,
+                delay: parseInt(formData.get('delay')),
+                maxResults: parseInt(formData.get('maxResults')),
+                extractEmails: formData.get('extractEmails') === 'on'
+            };
+            
+            try {
+                const response = await fetch('/api/scraping/start', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    alert('¡Job de scraping iniciado!\\n\\nID: ' + result.jobId + '\\nZonas: ' + zones.length + '\\n\\nEl sistema comenzará a buscar restaurantes usando Google Places API. Los datos se guardan automáticamente en la base de datos.\\n\\nPuedes ver el progreso en la sección "Jobs Activos".');
+                    setTimeout(() => location.reload(), 2000);
+                } else {
+                    alert('Error: ' + result.error);
+                    submitBtn.disabled = false;
+                    submitBtn.innerHTML = '<i class="bi bi-play-circle"></i> Iniciar Scraping';
+                }
+            } catch (error) {
+                alert('Error al iniciar scraping: ' + error.message);
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = '<i class="bi bi-play-circle"></i> Iniciar Scraping';
+            }
+        });
+        
+        // Auto-refresh job status every 10 seconds
+        function updateJobStatus() {
+            fetch('/api/scraping/status')
+                .then(r => r.json())
+                .then(data => {
+                    // Update active jobs count
+                    document.getElementById('activeJobsCount').textContent = data.totalActiveJobs + ' Jobs Activos';
+                    
+                    // Update active jobs display
+                    const activeJobsEl = document.getElementById('activeJobs');
+                    if (data.activeJobs && data.activeJobs.length > 0) {
+                        activeJobsEl.innerHTML = data.activeJobs.map(job => `
+                            <div class="alert alert-info">
+                                <strong>Job ${job.id}</strong><br>
+                                Estado: ${job.status}<br>
+                                Progreso: ${job.processed}/${job.total} zonas<br>
+                                Zona actual: ${job.currentZone || 'N/A'}<br>
+                                Restaurantes encontrados: ${job.results}
+                            </div>
+                        `).join('');
+                    } else {
+                        activeJobsEl.innerHTML = '<p class="text-muted">No hay jobs activos</p>';
+                    }
+                    
+                    // Update history
+                    const historyEl = document.getElementById('jobHistory');
+                    if (data.recentHistory && data.recentHistory.length > 0) {
+                        historyEl.innerHTML = data.recentHistory.map(job => `
+                            <div class="border-bottom pb-2 mb-2">
+                                <strong>Job #${job.id}</strong> - ${job.status}<br>
+                                <small>Terminado: ${new Date(job.endTime).toLocaleString()}</small><br>
+                                <small>Restaurantes encontrados: ${job.results || 0}</small>
+                            </div>
+                        `).join('');
+                    } else {
+                        historyEl.innerHTML = '<p class="text-muted">No hay historial disponible</p>';
+                    }
+                })
+                .catch(e => console.log('Status check failed:', e));
+        }
+        
+        // Initial load and set interval
+        updateJobStatus();
+        setInterval(updateJobStatus, 10000);
+    </script>
+</body>
+</html>
