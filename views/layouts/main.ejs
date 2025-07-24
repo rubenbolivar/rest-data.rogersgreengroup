@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title><%= title ? title + ' - ' : '' %>Rogers Green Restaurant Database</title>
+    
+    <!-- Bootstrap 5.3 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    
+    <!-- Bootstrap Icons -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
+    
+    <!-- DataTables CSS -->
+    <link href="https://cdn.datatables.net/1.13.7/css/dataTables.bootstrap5.min.css" rel="stylesheet">
+    <link href="https://cdn.datatables.net/responsive/2.5.0/css/responsive.bootstrap5.min.css" rel="stylesheet">
+    
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <!-- Leaflet for maps -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    
+    <!-- Custom CSS -->
+    <link href="/css/custom.css" rel="stylesheet">
+    <% if (locals.additionalCSS) { %>
+        <% additionalCSS.forEach(function(css) { %>
+            <link href="<%= css %>" rel="stylesheet">
+        <% }); %>
+    <% } %>
+    
+    <style>
+        :root {
+            --primary-color: #0d6efd;
+            --secondary-color: #6c757d;
+            --success-color: #198754;
+            --warning-color: #ffc107;
+            --danger-color: #dc3545;
+        }
+        
+        .navbar-brand {
+            font-weight: 600;
+        }
+        
+        .card {
+            box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+            border: 1px solid rgba(0, 0, 0, 0.125);
+        }
+        
+        .btn {
+            border-radius: 0.375rem;
+        }
+        
+        .table th {
+            border-top: none;
+            font-weight: 600;
+            color: #495057;
+            background-color: #f8f9fa;
+        }
+        
+        .badge {
+            font-size: 0.875em;
+        }
+        
+        .progress {
+            background-color: #e9ecef;
+        }
+        
+        .sidebar {
+            min-height: calc(100vh - 56px);
+            background-color: #f8f9fa;
+            border-right: 1px solid #dee2e6;
+        }
+        
+        .sidebar .nav-link {
+            color: #495057;
+            padding: 0.75rem 1rem;
+            border-radius: 0.375rem;
+            margin-bottom: 0.25rem;
+        }
+        
+        .sidebar .nav-link:hover {
+            background-color: #e9ecef;
+            color: #0d6efd;
+        }
+        
+        .sidebar .nav-link.active {
+            background-color: #0d6efd;
+            color: white;
+        }
+        
+        .sidebar .nav-link i {
+            width: 1.25rem;
+            margin-right: 0.5rem;
+        }
+        
+        .main-content {
+            padding: 2rem 0;
+        }
+        
+        .stats-card {
+            border-left: 4px solid var(--primary-color);
+        }
+        
+        .stats-card.success {
+            border-left-color: var(--success-color);
+        }
+        
+        .stats-card.warning {
+            border-left-color: var(--warning-color);
+        }
+        
+        .stats-card.danger {
+            border-left-color: var(--danger-color);
+        }
+        
+        .zone-priority-high {
+            color: #dc3545;
+        }
+        
+        .zone-priority-medium {
+            color: #ffc107;
+        }
+        
+        .zone-priority-low {
+            color: #6c757d;
+        }
+        
+        .loading-spinner {
+            display: none;
+        }
+        
+        .loading .loading-spinner {
+            display: inline-block;
+        }
+        
+        .loading .btn-text {
+            display: none;
+        }
+        
+        @media (max-width: 768px) {
+            .sidebar {
+                display: none;
+            }
+            
+            .main-content {
+                padding: 1rem 0;
+            }
+        }
+        
+        .flash-messages {
+            position: fixed;
+            top: 70px;
+            right: 20px;
+            z-index: 1050;
+            max-width: 400px;
+        }
+    </style>
+</head>
+<body>
+    <!-- Navigation -->
+    <%- include('../partials/navbar') %>
+    
+    <!-- Flash Messages -->
+    <div class="flash-messages">
+        <% if (locals.messages) { %>
+            <% if (messages.success) { %>
+                <% messages.success.forEach(function(msg) { %>
+                    <div class="alert alert-success alert-dismissible fade show" role="alert">
+                        <i class="bi bi-check-circle me-2"></i><%= msg %>
+                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                    </div>
+                <% }); %>
+            <% } %>
+            <% if (messages.error) { %>
+                <% messages.error.forEach(function(msg) { %>
+                    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                        <i class="bi bi-exclamation-circle me-2"></i><%= msg %>
+                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                    </div>
+                <% }); %>
+            <% } %>
+            <% if (messages.warning) { %>
+                <% messages.warning.forEach(function(msg) { %>
+                    <div class="alert alert-warning alert-dismissible fade show" role="alert">
+                        <i class="bi bi-exclamation-triangle me-2"></i><%= msg %>
+                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                    </div>
+                <% }); %>
+            <% } %>
+            <% if (messages.info) { %>
+                <% messages.info.forEach(function(msg) { %>
+                    <div class="alert alert-info alert-dismissible fade show" role="alert">
+                        <i class="bi bi-info-circle me-2"></i><%= msg %>
+                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                    </div>
+                <% }); %>
+            <% } %>
+        <% } %>
+    </div>
+    
+    <div class="container-fluid">
+        <div class="row">
+            <!-- Sidebar (for admin pages) -->
+            <% if (locals.showSidebar !== false) { %>
+            <div class="col-md-3 col-lg-2 px-0">
+                <div class="sidebar p-3">
+                    <nav class="nav flex-column">
+                        <a class="nav-link" href="/admin">
+                            <i class="bi bi-speedometer2"></i>Dashboard
+                        </a>
+                        <a class="nav-link" href="/admin/zones">
+                            <i class="bi bi-geo-alt"></i>Zone Management
+                        </a>
+                        <a class="nav-link" href="/admin/zone-templates">
+                            <i class="bi bi-files"></i>Zone Templates
+                        </a>
+                        <hr>
+                        <a class="nav-link" href="/">
+                            <i class="bi bi-house"></i>Main Dashboard
+                        </a>
+                        <a class="nav-link" href="/restaurants">
+                            <i class="bi bi-table"></i>Restaurants
+                        </a>
+                        <a class="nav-link" href="/scraping">
+                            <i class="bi bi-arrow-clockwise"></i>Scraping
+                        </a>
+                        <hr>
+                        <a class="nav-link" href="/admin/zones/export">
+                            <i class="bi bi-download"></i>Export Data
+                        </a>
+                    </nav>
+                </div>
+            </div>
+            <% } %>
+            
+            <!-- Main Content -->
+            <div class="<%= locals.showSidebar !== false ? 'col-md-9 col-lg-10' : 'col-12' %>">
+                <div class="main-content">
+                    <%- body %>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Footer -->
+    <footer class="bg-light text-center py-3 mt-5">
+        <div class="container">
+            <small class="text-muted">
+                © 2024 Rogers Green Group - Restaurant Database System | 
+                <a href="https://rest-data.rogersgreengroup.com" class="text-decoration-none">rest-data.rogersgreengroup.com</a>
+            </small>
+        </div>
+    </footer>
+    
+    <!-- jQuery -->
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+    
+    <!-- Bootstrap 5 JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <!-- DataTables JS -->
+    <script src="https://cdn.datatables.net/1.13.7/js/jquery.dataTables.min.js"></script>
+    <script src="https://cdn.datatables.net/1.13.7/js/dataTables.bootstrap5.min.js"></script>
+    <script src="https://cdn.datatables.net/responsive/2.5.0/js/dataTables.responsive.min.js"></script>
+    <script src="https://cdn.datatables.net/responsive/2.5.0/js/responsive.bootstrap5.min.js"></script>
+    
+    <!-- Custom JS -->
+    <script src="/js/dashboard.js"></script>
+    <% if (locals.additionalJS) { %>
+        <% additionalJS.forEach(function(js) { %>
+            <script src="<%= js %>"></script>
+        <% }); %>
+    <% } %>
+    
+    <script>
+        // Global JavaScript functions
+        
+        // Auto-dismiss flash messages after 5 seconds
+        setTimeout(function() {
+            $('.alert').fadeOut('slow');
+        }, 5000);
+        
+        // Active navigation highlighting
+        $(document).ready(function() {
+            const currentPath = window.location.pathname;
+            $('.sidebar .nav-link').removeClass('active');
+            $('.sidebar .nav-link[href="' + currentPath + '"]').addClass('active');
+            
+            // Handle parent menu highlighting
+            if (currentPath.startsWith('/admin/zones')) {
+                $('.sidebar .nav-link[href="/admin/zones"]').addClass('active');
+            } else if (currentPath.startsWith('/admin')) {
+                $('.sidebar .nav-link[href="/admin"]').addClass('active');
+            }
+        });
+        
+        // Confirmation dialogs
+        function confirmAction(message) {
+            return confirm(message || 'Are you sure you want to perform this action?');
+        }
+        
+        // Loading state for buttons
+        function setButtonLoading(button, loading = true) {
+            if (loading) {
+                $(button).addClass('loading').prop('disabled', true);
+            } else {
+                $(button).removeClass('loading').prop('disabled', false);
+            }
+        }
+        
+        // Show/hide loading spinner
+        function showLoading(element) {
+            $(element).addClass('loading');
+        }
+        
+        function hideLoading(element) {
+            $(element).removeClass('loading');
+        }
+        
+        // Format numbers with commas
+        function formatNumber(num) {
+            return num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+        }
+        
+        // Format currency
+        function formatCurrency(amount) {
+            return new Intl.NumberFormat('en-US', {
+                style: 'currency',
+                currency: 'USD'
+            }).format(amount);
+        }
+        
+        // Format date
+        function formatDate(date) {
+            return new Date(date).toLocaleDateString('en-US', {
+                year: 'numeric',
+                month: 'short',
+                day: 'numeric'
+            });
+        }
+        
+        // API call helper
+        async function apiCall(url, options = {}) {
+            try {
+                const response = await fetch(url, {
+                    headers: {
+                        'Content-Type': 'application/json',
+                        ...options.headers
+                    },
+                    ...options
+                });
+                
+                const data = await response.json();
+                
+                if (!response.ok) {
+                    throw new Error(data.error || 'API call failed');
+                }
+                
+                return data;
+            } catch (error) {
+                console.error('API call error:', error);
+                throw error;
+            }
+        }
+    </script>
+    
+    <% if (locals.pageJS) { %>
+        <script>
+            <%- pageJS %>
+        </script>
+    <% } %>
+</body>
+</html>

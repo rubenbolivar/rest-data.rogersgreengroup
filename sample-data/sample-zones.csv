@@ -1,0 +1,11 @@
+display_name,city,state,country,latitude,longitude,radius_meters,priority,search_terms,cuisine_focus,notes
+"Miami Beach, FL",Miami Beach,FL,US,25.7907,-80.1300,8000,1,"restaurant, seafood restaurant","seafood, latin","Tourist area with beach dining and nightlife"
+"Boston North End",Boston,MA,US,42.3647,-71.0542,3000,2,"restaurant, italian restaurant","italian, european","Historic Italian neighborhood with authentic cuisine"
+"Austin Downtown",Austin,TX,US,30.2672,-97.7431,6000,1,"restaurant, bbq, food truck","bbq, tex-mex, food trucks","Music and food scene with diverse options"
+"Nashville Music Row",Nashville,TN,US,36.1540,-86.7982,4000,2,"restaurant, southern restaurant","southern, bbq, american","Country music district with southern cuisine"
+"San Francisco Chinatown",San Francisco,CA,US,37.7941,-122.4078,2000,2,"restaurant, chinese restaurant, dim sum","chinese, asian, dim sum","Historic Chinatown with authentic Asian cuisine"
+"Chicago Lincoln Park",Chicago,IL,US,41.9242,-87.6417,5000,1,"restaurant, deep dish pizza","pizza, italian, american","Popular neighborhood near Lincoln Park Zoo"
+"Portland Pearl District",Portland,OR,US,45.5272,-122.6795,3500,2,"restaurant, craft brewery, food cart","pacific northwest, organic, craft beer","Trendy district with farm-to-table restaurants"
+"Charleston Historic District",Charleston,SC,US,32.7767,-79.9309,4000,1,"restaurant, southern cuisine, seafood","southern, seafood, low country","Historic area with renowned southern cuisine"
+"Denver LoDo",Denver,CO,US,39.7528,-105.0034,4500,2,"restaurant, brewery, steakhouse","american, brewery, steakhouse","Lower Downtown with craft breweries and dining"
+"Seattle Pike Place",Seattle,WA,US,47.6085,-122.3396,3000,1,"restaurant, seafood, coffee","seafood, coffee, pacific northwest","Famous market area with fresh seafood and coffee"
