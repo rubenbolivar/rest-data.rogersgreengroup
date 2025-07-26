@@ -1,0 +1,55 @@
+{
+  "name": "restaurant-scraper",
+  "version": "1.0.0",
+  "description": "Scalable restaurant scraping system with dynamic zone management",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "nodemon server.js",
+    "migrate": "node scripts/migrate-zones.js",
+    "seed:zones": "psql $DATABASE_URL -f database/seeds/initial-zones.sql",
+    "seed:templates": "psql $DATABASE_URL -f database/seeds/zone-templates.sql",
+    "test": "jest"
+  },
+  "keywords": [
+    "restaurant",
+    "scraping",
+    "google-places",
+    "data-extraction",
+    "nodejs"
+  ],
+  "author": "Rogers Green Group",
+  "license": "MIT",
+  "dependencies": {
+    "express": "^4.18.2",
+    "ejs": "^3.1.9",
+    "pg": "^8.11.3",
+    "@googlemaps/google-maps-services-js": "^3.3.42",
+    "puppeteer": "^21.6.1",
+    "axios": "^1.6.2",
+    "cheerio": "^1.0.0-rc.12",
+    "csv-writer": "^1.6.0",
+    "csv-parser": "^3.0.0",
+    "express-session": "^1.17.3",
+    "express-rate-limit": "^7.1.5",
+    "express-fileupload": "^1.4.1",
+    "helmet": "^7.1.0",
+    "cors": "^2.8.5",
+    "dotenv": "^16.3.1",
+    "winston": "^3.11.0",
+    "email-validator": "^2.0.4",
+    "libphonenumber-js": "^1.10.51",
+    "lodash": "^4.17.21",
+    "moment": "^2.29.4",
+    "multer": "^1.4.5",
+    "jsonwebtoken": "^9.0.2",
+    "bcrypt": "^5.1.1"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.2",
+    "jest": "^29.7.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

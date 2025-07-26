@@ -1,0 +1,43 @@
+<%- include('layouts/main') %>
+
+<%- contentFor('body') %>
+<div class="container-fluid mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-8 col-lg-6">
+            <div class="card border-danger">
+                <div class="card-header bg-danger text-white">
+                    <h4 class="mb-0"><i class="bi bi-exclamation-triangle"></i> Error</h4>
+                </div>
+                <div class="card-body text-center">
+                    <div class="mb-4">
+                        <i class="bi bi-exclamation-circle-fill text-danger" style="font-size: 4rem;"></i>
+                    </div>
+                    
+                    <h3 class="text-danger mb-3"><%= error || 'An Error Occurred' %></h3>
+                    
+                    <% if (locals.message) { %>
+                    <div class="alert alert-light border" role="alert">
+                        <small class="text-muted"><%= message %></small>
+                    </div>
+                    <% } %>
+                    
+                    <div class="mt-4">
+                        <a href="/" class="btn btn-primary me-2">
+                            <i class="bi bi-house"></i> Go Home
+                        </a>
+                        <button onclick="history.back()" class="btn btn-outline-secondary">
+                            <i class="bi bi-arrow-left"></i> Go Back
+                        </button>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="text-center mt-4">
+                <small class="text-muted">
+                    If this error persists, please contact support at 
+                    <a href="mailto:support@rogersgreengroup.com">support@rogersgreengroup.com</a>
+                </small>
+            </div>
+        </div>
+    </div>
+</div>

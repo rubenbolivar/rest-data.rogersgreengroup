@@ -1,0 +1,242 @@
+<%- include('layouts/main') %>
+
+<%- contentFor('body') %>
+<div class="container-fluid mt-4">
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1><i class="bi bi-speedometer2"></i> Restaurant Database Dashboard</h1>
+            <p class="text-muted mb-0">Monitor and manage your restaurant data collection</p>
+        </div>
+        <div class="text-end">
+            <small class="text-muted" id="last-update">
+                Last updated: <%= new Date().toLocaleString() %>
+            </small>
+        </div>
+    </div>
+
+    <!-- Key Statistics -->
+    <div class="row mb-4">
+        <div class="col-lg-3 col-md-6 mb-3">
+            <div class="card stats-card">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="flex-shrink-0">
+                            <i class="bi bi-geo-alt-fill text-primary" style="font-size: 2rem;"></i>
+                        </div>
+                        <div class="flex-grow-1 ms-3">
+                            <h6 class="card-title text-muted mb-1">Active Zones</h6>
+                            <h2 class="mb-0 stat-value" id="total-zones"><%= stats.totalZones %></h2>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-lg-3 col-md-6 mb-3">
+            <a href="/restaurants" class="text-decoration-none">
+                <div class="card stats-card success card-hover">
+                    <div class="card-body">
+                        <div class="d-flex align-items-center">
+                            <div class="flex-shrink-0">
+                                <i class="bi bi-shop text-success" style="font-size: 2rem;"></i>
+                            </div>
+                            <div class="flex-grow-1 ms-3">
+                                <h6 class="card-title text-muted mb-1">Total Restaurants</h6>
+                                <h2 class="mb-0 stat-value" id="total-restaurants"><%= stats.totalRestaurants.toLocaleString() %></h2>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </a>
+        </div>
+        
+        <div class="col-lg-3 col-md-6 mb-3">
+            <div class="card stats-card warning">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="flex-shrink-0">
+                            <i class="bi bi-envelope-fill text-warning" style="font-size: 2rem;"></i>
+                        </div>
+                        <div class="flex-grow-1 ms-3">
+                            <h6 class="card-title text-muted mb-1">Emails Found</h6>
+                            <h2 class="mb-0 stat-value" id="restaurants-with-email"><%= stats.restaurantsWithEmail.toLocaleString() %></h2>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-lg-3 col-md-6 mb-3">
+            <div class="card stats-card danger">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="flex-shrink-0">
+                            <i class="bi bi-arrow-clockwise text-info" style="font-size: 2rem;"></i>
+                        </div>
+                        <div class="flex-grow-1 ms-3">
+                            <h6 class="card-title text-muted mb-1">Active Jobs</h6>
+                            <h2 class="mb-0 stat-value" id="active-jobs"><%= stats.activeJobs %></h2>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Progress Overview -->
+    <div class="row mb-4">
+        <div class="col-lg-8">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="bi bi-bar-chart"></i> Data Collection Progress</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6>Email Coverage</h6>
+                            <div class="progress mb-3" style="height: 25px;">
+                                <div class="progress-bar bg-warning" id="email-coverage" style="width: <%= stats.totalRestaurants > 0 ? ((stats.restaurantsWithEmail / stats.totalRestaurants) * 100).toFixed(1) : 0 %>%">
+                                    <%= stats.totalRestaurants > 0 ? ((stats.restaurantsWithEmail / stats.totalRestaurants) * 100).toFixed(1) : 0 %>%
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <h6>Data Quality Score</h6>
+                            <div class="progress mb-3" style="height: 25px;">
+                                <div class="progress-bar bg-info" style="width: 75%">
+                                    75%
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Quick Actions -->
+                    <div class="mt-4">
+                        <a href="/scraping" class="btn btn-primary me-2">
+                            <i class="bi bi-arrow-clockwise"></i> Start Scraping
+                        </a>
+                        <a href="/restaurants" class="btn btn-outline-primary me-2">
+                            <i class="bi bi-table"></i> View Restaurants
+                        </a>
+                        <a href="/admin/zones" class="btn btn-outline-secondary">
+                            <i class="bi bi-geo-alt"></i> Manage Zones
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-lg-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="bi bi-list-check"></i> Priority Breakdown</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row" id="priority-breakdown">
+                        <% if (stats.priorityStats && stats.priorityStats.length > 0) { %>
+                            <% stats.priorityStats.forEach(function(stat) { %>
+                                <% 
+                                const priorityName = stat.priority === 1 ? 'High' : stat.priority === 2 ? 'Medium' : 'Low';
+                                const priorityClass = stat.priority === 1 ? 'danger' : stat.priority === 2 ? 'warning' : 'secondary';
+                                %>
+                                <div class="col-12 mb-3">
+                                    <div class="card border-start-<%= priorityClass %>">
+                                        <div class="card-body py-3">
+                                            <h6 class="card-title mb-1"><%= priorityName %> Priority</h6>
+                                            <div class="d-flex justify-content-between">
+                                                <span class="text-muted"><%= stat.zone_count %> zones</span>
+                                                <span class="fw-bold"><%= parseInt(stat.total_restaurants || 0).toLocaleString() %> restaurants</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            <% }); %>
+                        <% } else { %>
+                            <div class="col-12">
+                                <p class="text-muted text-center">No priority data available</p>
+                            </div>
+                        <% } %>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recent Zones -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0"><i class="bi bi-clock-history"></i> Recently Added Zones</h5>
+                    <a href="/admin/zones" class="btn btn-sm btn-outline-primary">View All</a>
+                </div>
+                <div class="card-body">
+                    <% if (recentZones && recentZones.length > 0) { %>
+                        <div class="table-responsive">
+                            <table class="table table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>Zone</th>
+                                        <th>Location</th>
+                                        <th>Restaurants</th>
+                                        <th>Email Coverage</th>
+                                        <th>Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <% recentZones.forEach(function(zone) { %>
+                                        <tr>
+                                            <td>
+                                                <strong><%= zone.display_name %></strong><br>
+                                                <small class="text-muted"><%= zone.zone_code %></small>
+                                            </td>
+                                            <td><%= zone.city %>, <%= zone.state %></td>
+                                            <td>
+                                                <span class="badge bg-primary"><%= (zone.restaurant_count || 0).toLocaleString() %></span>
+                                            </td>
+                                            <td>
+                                                <% 
+                                                const restaurantCount = parseInt(zone.restaurant_count) || 0;
+                                                const emailCount = parseInt(zone.email_count) || 0;
+                                                const coverage = restaurantCount > 0 ? ((emailCount / restaurantCount) * 100).toFixed(1) : 0;
+                                                %>
+                                                <div class="progress" style="height: 20px; width: 100px;">
+                                                    <div class="progress-bar <%= coverage > 50 ? 'bg-success' : coverage > 25 ? 'bg-warning' : 'bg-danger' %>" 
+                                                         style="width: <%= coverage %>%">
+                                                        <%= coverage %>%
+                                                    </div>
+                                                </div>
+                                            </td>
+                                            <td>
+                                                <% if (zone.is_active) { %>
+                                                    <span class="badge bg-success">Active</span>
+                                                <% } else { %>
+                                                    <span class="badge bg-secondary">Inactive</span>
+                                                <% } %>
+                                            </td>
+                                        </tr>
+                                    <% }); %>
+                                </tbody>
+                            </table>
+                        </div>
+                    <% } else { %>
+                        <div class="text-center py-4">
+                            <i class="bi bi-inbox text-muted" style="font-size: 3rem;"></i>
+                            <p class="text-muted mt-2">No zones found. <a href="/admin/zones/new">Add your first zone</a></p>
+                        </div>
+                    <% } %>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Loading indicator -->
+<div class="loading-indicator d-none" id="dashboard-loading">
+    <div class="position-fixed top-50 start-50 translate-middle">
+        <div class="spinner-border text-primary" role="status">
+            <span class="visually-hidden">Loading...</span>
+        </div>
+    </div>
+</div>
